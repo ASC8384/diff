@@ -1,0 +1,20 @@
+{
+  "name": "diff-checker-cn",
+  "version": "1.0.0",
+  "description": "在线差异对比工具（中文版），支持文本/代码对比、文件上传对比、图片对比",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "diff": "^5.2.0",
+    "highlight.js": "^11.9.0",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "vite": "^5.2.0"
+  }
+}

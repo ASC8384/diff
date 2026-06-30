@@ -1,0 +1,47 @@
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --border: #dfe1e6;
+  --text: #1a1a2e;
+  --text-muted: #6b7280;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --added-bg: #e6ffed;
+  --added-border: #34d058;
+  --added-char: #acf2bd;
+  --removed-bg: #ffeef0;
+  --removed-border: #d73a49;
+  --removed-char: #fdb8c0;
+  --gutter-bg: #fafbfc;
+  --font-mono: "SF Mono", "Fira Code", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+a {
+  color: var(--primary);
+}
