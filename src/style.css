@@ -1,19 +1,70 @@
 :root {
-  --bg: #f5f6f8;
+  /* 中性色（亮色主题） */
+  --bg: #f7f8fa;
+  --bg-soft: #eef0f4;
   --panel: #ffffff;
-  --border: #dfe1e6;
-  --text: #1a1a2e;
-  --text-muted: #6b7280;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --added-bg: #e6ffed;
-  --added-border: #34d058;
-  --added-char: #acf2bd;
-  --removed-bg: #ffeef0;
-  --removed-border: #d73a49;
-  --removed-char: #fdb8c0;
-  --gutter-bg: #fafbfc;
-  --font-mono: "SF Mono", "Fira Code", Consolas, "Liberation Mono", Menlo, monospace;
+  --panel-soft: #f8f9fb;
+  --border: #e4e7ec;
+  --border-strong: #d3d7e0;
+  --text: #1c2230;
+  --text-muted: #737b8c;
+  --primary: #4f5bd5;
+  --primary-hover: #4049c2;
+  --primary-soft: #eceefb;
+  --ring: rgba(79, 91, 213, 0.28);
+
+  /* 语义色：新增(emerald) / 删除(rose) */
+  --added-fg: #067a51;
+  --added-bg: #eaf7f1;
+  --added-char: #b4ebd3;
+  --removed-fg: #c2334d;
+  --removed-bg: #fceef1;
+  --removed-char: #f6c2cd;
+
+  --gutter-bg: #f9fafc;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 2px rgba(28, 34, 48, 0.05);
+  --shadow-md: 0 4px 16px rgba(28, 34, 48, 0.08);
+
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  --font-display: "Space Grotesk", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", Consolas,
+    "Liberation Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d0f16;
+    --bg-soft: #151824;
+    --panel: #161a26;
+    --panel-soft: #1b2030;
+    --border: #262c3b;
+    --border-strong: #333a4d;
+    --text: #e5e8ef;
+    --text-muted: #8a92a4;
+    --primary: #838cf0;
+    --primary-hover: #9aa1f3;
+    --primary-soft: #1e2137;
+    --ring: rgba(131, 140, 240, 0.32);
+
+    --added-fg: #35d399;
+    --added-bg: #0e2a22;
+    --added-char: #1c5946;
+    --removed-fg: #fb7185;
+    --removed-bg: #2c1620;
+    --removed-char: #5e2436;
+
+    --gutter-bg: #10131d;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
 }
 
 * {
@@ -26,9 +77,10 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 #app {
@@ -45,3 +97,93 @@ button {
 a {
   color: var(--primary);
 }
+
+::selection {
+  background: var(--ring);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* 暗色模式下覆盖 highlight.js 的 github.css 亮色调色板（github-dark） */
+@media (prefers-color-scheme: dark) {
+  .hljs {
+    color: #c9d1d9;
+    background: transparent;
+  }
+  .hljs-doctag,
+  .hljs-keyword,
+  .hljs-meta .hljs-keyword,
+  .hljs-template-tag,
+  .hljs-template-variable,
+  .hljs-type,
+  .hljs-variable.language_ {
+    color: #ff7b72;
+  }
+  .hljs-title,
+  .hljs-title.class_,
+  .hljs-title.class_.inherited__,
+  .hljs-title.function_ {
+    color: #d2a8ff;
+  }
+  .hljs-attr,
+  .hljs-attribute,
+  .hljs-literal,
+  .hljs-meta,
+  .hljs-number,
+  .hljs-operator,
+  .hljs-selector-attr,
+  .hljs-selector-class,
+  .hljs-selector-id,
+  .hljs-variable {
+    color: #79c0ff;
+  }
+  .hljs-meta .hljs-string,
+  .hljs-regexp,
+  .hljs-string {
+    color: #a5d6ff;
+  }
+  .hljs-built_in,
+  .hljs-symbol {
+    color: #ffa657;
+  }
+  .hljs-code,
+  .hljs-comment,
+  .hljs-formula {
+    color: #8b949e;
+  }
+  .hljs-name,
+  .hljs-quote,
+  .hljs-selector-pseudo,
+  .hljs-selector-tag {
+    color: #7ee787;
+  }
+  .hljs-subst {
+    color: #c9d1d9;
+  }
+  .hljs-section {
+    color: #1f6feb;
+    font-weight: 700;
+  }
+  .hljs-bullet {
+    color: #f2cc60;
+  }
+  .hljs-addition {
+    color: #aff5b4;
+    background-color: #033a16;
+  }
+  .hljs-deletion {
+    color: #ffdcd7;
+    background-color: #67060c;
+  }
+}
+

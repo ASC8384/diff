@@ -140,63 +140,71 @@ const hasContent = computed(
 .viewer {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   overflow: auto;
+  box-shadow: var(--shadow-sm);
 }
 .diff-table {
   border-collapse: collapse;
   width: 100%;
   font-family: var(--font-mono);
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 .col-no {
-  width: 48px;
+  width: 52px;
 }
 .col-sign {
-  width: 24px;
+  width: 26px;
 }
 .col-code {
   width: auto;
 }
 .gutter {
   text-align: right;
-  padding: 0 8px;
+  padding: 0 10px;
   color: var(--text-muted);
   background: var(--gutter-bg);
   border-right: 1px solid var(--border);
   user-select: none;
   white-space: nowrap;
   vertical-align: top;
+  font-size: 12px;
 }
 .sign {
   text-align: center;
-  color: var(--text-muted);
+  font-weight: 600;
   user-select: none;
   vertical-align: top;
 }
+.row--added .sign {
+  color: var(--added-fg);
+}
+.row--removed .sign {
+  color: var(--removed-fg);
+}
 .code {
-  padding: 0 10px;
+  padding: 0 12px;
   white-space: pre-wrap;
   word-break: break-word;
   vertical-align: top;
 }
 .cell--added {
   background: var(--added-bg);
+  box-shadow: inset 3px 0 0 var(--added-fg);
 }
 .cell--removed {
   background: var(--removed-bg);
+  box-shadow: inset 3px 0 0 var(--removed-fg);
 }
 .seg--added {
   background: var(--added-char);
-  border-radius: 2px;
+  border-radius: 3px;
+  padding: 1px 0;
 }
 .seg--removed {
   background: var(--removed-char);
-  border-radius: 2px;
-}
-.row--added .code,
-.row--removed .code {
-  /* 行内视图整行底色已由 cell-- 控制 */
+  border-radius: 3px;
+  padding: 1px 0;
 }
 </style>

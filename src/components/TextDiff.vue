@@ -54,24 +54,24 @@ const canCompare = computed(
     </div>
 
     <div class="toolbar">
-      <button class="btn btn--primary" :disabled="!canCompare" @click="compare">
-        对比差异
-      </button>
-      <button class="btn" @click="swap">交换两侧</button>
+      <div class="toolbar__group">
+        <button class="btn btn--primary" :disabled="!canCompare" @click="compare">
+          对比差异
+        </button>
+        <button class="btn" @click="swap">交换两侧</button>
+      </div>
 
-      <span class="toolbar__sep"></span>
-
-      <label class="opt"
-        ><input type="checkbox" v-model="ignoreCase" />忽略大小写</label
-      >
-      <label class="opt"
-        ><input type="checkbox" v-model="ignoreWhitespace" />忽略空白</label
-      >
-      <label class="opt"
-        ><input type="checkbox" v-model="highlight" />语法高亮</label
-      >
-
-      <span class="toolbar__sep"></span>
+      <div class="toolbar__group toolbar__opts">
+        <label class="opt"
+          ><input type="checkbox" v-model="ignoreCase" />忽略大小写</label
+        >
+        <label class="opt"
+          ><input type="checkbox" v-model="ignoreWhitespace" />忽略空白</label
+        >
+        <label class="opt"
+          ><input type="checkbox" v-model="highlight" />语法高亮</label
+        >
+      </div>
 
       <div class="view-switch">
         <button
@@ -93,11 +93,11 @@ const canCompare = computed(
 
     <div v-if="compared && stats" class="stats">
       <template v-if="stats.identical">
-        <span class="stats__same">✓ 两侧内容完全相同</span>
+        <span class="stats__pill stats__pill--same">两侧内容完全相同</span>
       </template>
       <template v-else>
-        <span class="stats__added">+ {{ stats.added }} 行新增</span>
-        <span class="stats__removed">- {{ stats.removed }} 行删除</span>
+        <span class="stats__pill stats__pill--added">+{{ stats.added }} 行新增</span>
+        <span class="stats__pill stats__pill--removed">−{{ stats.removed }} 行删除</span>
       </template>
     </div>
 
@@ -120,24 +120,35 @@ const canCompare = computed(
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 20px;
   flex-wrap: wrap;
   margin: 16px 0;
 }
+/* 操作聚拢：同组按钮紧挨，组间用中等间距区隔 */
+.toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toolbar__opts {
+  gap: 16px;
+}
 .btn {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: var(--panel);
   padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 500;
   color: var(--text);
+  transition: border-color 0.16s, color 0.16s, background 0.16s;
 }
 .btn:hover:not(:disabled) {
   border-color: var(--primary);
   color: var(--primary);
 }
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 .btn--primary {
@@ -147,53 +158,70 @@ const canCompare = computed(
 }
 .btn--primary:hover:not(:disabled) {
   background: var(--primary-hover);
+  border-color: var(--primary-hover);
   color: #fff;
-}
-.toolbar__sep {
-  width: 1px;
-  height: 22px;
-  background: var(--border);
 }
 .opt {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 13px;
   color: var(--text-muted);
   cursor: pointer;
+  user-select: none;
+}
+.opt input {
+  accent-color: var(--primary);
+  width: 15px;
+  height: 15px;
 }
 .view-switch {
   display: flex;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   overflow: hidden;
+  background: var(--panel);
 }
 .view-switch__btn {
   border: none;
-  background: var(--panel);
-  padding: 7px 14px;
+  background: transparent;
+  padding: 8px 14px;
   font-size: 13px;
+  font-weight: 500;
   color: var(--text-muted);
+  transition: background 0.16s, color 0.16s;
+}
+.view-switch__btn:hover:not(.view-switch__btn--active) {
+  background: var(--panel-soft);
+  color: var(--text);
 }
 .view-switch__btn--active {
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 .stats {
   display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
-  font-size: 13px;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stats__pill {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
 }
-.stats__added {
-  color: #1a7f37;
+.stats__pill--added {
+  color: var(--added-fg);
+  background: var(--added-bg);
 }
-.stats__removed {
-  color: #cf222e;
+.stats__pill--removed {
+  color: var(--removed-fg);
+  background: var(--removed-bg);
 }
-.stats__same {
-  color: #1a7f37;
+.stats__pill--same {
+  color: var(--added-fg);
+  background: var(--added-bg);
 }
 @media (max-width: 720px) {
   .inputs {

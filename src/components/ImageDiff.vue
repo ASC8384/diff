@@ -235,23 +235,28 @@ watch([mode, leftSrc, rightSrc], async () => {
 .upload {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 .upload__bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--border);
-  background: var(--gutter-bg);
+  background: var(--panel-soft);
   font-weight: 600;
   font-size: 13px;
 }
 .link-btn {
-  color: var(--primary);
+  color: var(--text-muted);
   font-size: 13px;
   cursor: pointer;
+  transition: color 0.16s;
+}
+.link-btn:hover {
+  color: var(--primary);
 }
 .link-btn input {
   display: none;
@@ -261,18 +266,24 @@ watch([mode, leftSrc, rightSrc], async () => {
   display: grid;
   place-items: center;
   padding: 12px;
-  background: repeating-conic-gradient(#f0f0f0 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+  background: repeating-conic-gradient(
+      var(--bg-soft) 0% 25%,
+      var(--panel) 0% 50%
+    )
+    50% / 20px 20px;
 }
 .upload__body img {
   max-width: 100%;
   max-height: 400px;
+  border-radius: 4px;
 }
 .upload__hint {
   color: var(--text-muted);
 }
 .upload__meta {
-  padding: 6px 12px;
+  padding: 7px 14px;
   font-size: 12px;
+  font-family: var(--font-mono);
   color: var(--text-muted);
   border-top: 1px solid var(--border);
 }
@@ -280,25 +291,32 @@ watch([mode, leftSrc, rightSrc], async () => {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin: 16px 0;
+  margin: 18px 0;
   flex-wrap: wrap;
 }
 .view-switch {
   display: flex;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   overflow: hidden;
+  background: var(--panel);
 }
 .view-switch__btn {
   border: none;
-  background: var(--panel);
-  padding: 7px 14px;
+  background: transparent;
+  padding: 8px 16px;
   font-size: 13px;
+  font-weight: 500;
   color: var(--text-muted);
+  transition: background 0.18s, color 0.18s;
+}
+.view-switch__btn:hover:not(.view-switch__btn--active) {
+  background: var(--panel-soft);
+  color: var(--text);
 }
 .view-switch__btn--active {
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 .warn {
   font-size: 13px;
@@ -312,8 +330,12 @@ watch([mode, leftSrc, rightSrc], async () => {
 .result-side img {
   max-width: 100%;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: repeating-conic-gradient(#f0f0f0 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+  border-radius: var(--radius-sm);
+  background: repeating-conic-gradient(
+      var(--bg-soft) 0% 25%,
+      var(--panel) 0% 50%
+    )
+    50% / 20px 20px;
 }
 .result-slider {
   max-width: 720px;
@@ -321,7 +343,7 @@ watch([mode, leftSrc, rightSrc], async () => {
 .slider-stage {
   position: relative;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   user-select: none;
 }
@@ -347,6 +369,7 @@ watch([mode, leftSrc, rightSrc], async () => {
 .slider-range {
   width: 100%;
   margin-top: 10px;
+  accent-color: var(--primary);
 }
 .slider-labels {
   display: flex;
@@ -357,7 +380,7 @@ watch([mode, leftSrc, rightSrc], async () => {
 .result-diff canvas {
   max-width: 100%;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 .result-diff__legend {
   font-size: 13px;
