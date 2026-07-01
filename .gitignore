@@ -6,3 +6,6 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+# Claude Code 本地指引，不纳入版本管理
+CLAUDE.md
