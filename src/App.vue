@@ -1,13 +1,56 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import TextDiff from './components/TextDiff.vue'
 import ImageDiff from './components/ImageDiff.vue'
+import { load, save } from './utils/storage.js'
 
 const tabs = [
   { key: 'text', label: '文本' },
   { key: 'image', label: '图片' },
 ]
 const active = ref('text')
+
+/* 主题三态：auto（跟随系统）→ light → dark → auto 循环。
+   偏好存 localStorage，生效值写到 <html data-theme>（与 index.html 防闪烁脚本一致）。 */
+const themePref = ref('auto')
+const themeMeta = {
+  auto: { label: '跟随系统', next: 'light' },
+  light: { label: '浅色', next: 'dark' },
+  dark: { label: '深色', next: 'auto' },
+}
+let media = null
+
+function applyTheme() {
+  const effective =
+    themePref.value === 'auto'
+      ? media && media.matches
+        ? 'dark'
+        : 'light'
+      : themePref.value
+  document.documentElement.setAttribute('data-theme', effective)
+}
+
+function cycleTheme() {
+  themePref.value = themeMeta[themePref.value].next
+  save('theme', themePref.value)
+  applyTheme()
+}
+
+function onSystemChange() {
+  if (themePref.value === 'auto') applyTheme()
+}
+
+onMounted(() => {
+  const saved = load('theme', 'auto')
+  themePref.value = ['auto', 'light', 'dark'].includes(saved) ? saved : 'auto'
+  media = window.matchMedia('(prefers-color-scheme: dark)')
+  media.addEventListener('change', onSystemChange)
+  applyTheme()
+})
+
+onBeforeUnmount(() => {
+  if (media) media.removeEventListener('change', onSystemChange)
+})
 </script>
 
 <template>
@@ -51,6 +94,29 @@ const active = ref('text')
         </svg>
         本地处理 · 不上传
       </span>
+
+      <button
+        class="theme-btn"
+        type="button"
+        :title="'主题：' + themeMeta[themePref].label + '（点击切换）'"
+        :aria-label="'主题：' + themeMeta[themePref].label"
+        @click="cycleTheme"
+      >
+        <!-- auto：显示器 -->
+        <svg v-if="themePref === 'auto'" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M8 20h8M12 16v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <!-- light：太阳 -->
+        <svg v-else-if="themePref === 'light'" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12 2.5v2.6M12 18.9v2.6M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12h2.6M18.9 12h2.6M4.2 19.8 6 18M18 6l1.8-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <!-- dark：月亮 -->
+        <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 14.5A8 8 0 0 1 9.5 4 7 7 0 1 0 20 14.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -162,6 +228,26 @@ const active = ref('text')
   height: 14px;
 }
 
+.theme-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: color 0.16s, border-color 0.16s, background 0.16s;
+}
+.theme-btn:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.theme-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
 .app-main {
   flex: 1;
   max-width: 1280px;
@@ -180,9 +266,7 @@ const active = ref('text')
     display: none;
   }
   .privacy {
-    width: 100%;
-    margin: 0;
-    justify-content: center;
+    margin-left: auto;
   }
 }
 </style>

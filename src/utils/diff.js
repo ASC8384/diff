@@ -60,6 +60,10 @@ function charDiff(oldLine, newLine) {
   return { leftSegments, rightSegments }
 }
 
+// 超过该行数（两侧之和）时进入降级模式：跳过字符级行内高亮，
+// 只做行级 diff，避免大文本下 diffWordsWithSpace 逐行运算卡住 UI。
+const CHAR_DIFF_LINE_LIMIT = 5000
+
 /**
  * 主入口。
  * @param {string} oldText 原始文本
@@ -78,6 +82,9 @@ export function computeDiff(oldText, newText, options = {}) {
   const newNorm = normalize(newText, opts)
   const oldOrig = splitLines(oldText)
   const newOrig = splitLines(newText)
+
+  // 大文本降级：跳过字符级行内高亮
+  const degraded = oldOrig.length + newOrig.length > CHAR_DIFF_LINE_LIMIT
 
   const changes = diffLines(oldNorm, newNorm)
 
@@ -128,11 +135,16 @@ export function computeDiff(oldText, newText, options = {}) {
         ? Math.min(block.count, pairedAdded.count)
         : 0
 
-      // 配对部分：逐行字符级 diff
+      // 配对部分：逐行字符级 diff（降级时退化为整行增删）
       for (let k = 0; k < pairCount; k++) {
         const oldLine = oldOrig[oldIdx]
         const newLine = newOrig[newIdx]
-        const { leftSegments, rightSegments } = charDiff(oldLine, newLine)
+        const { leftSegments, rightSegments } = degraded
+          ? {
+              leftSegments: [{ value: oldLine, type: 'removed' }],
+              rightSegments: [{ value: newLine, type: 'added' }],
+            }
+          : charDiff(oldLine, newLine)
         rows.push({
           type: 'modified',
           leftNo: oldIdx + 1,
@@ -233,6 +245,7 @@ export function computeDiff(oldText, newText, options = {}) {
       added: addedCount,
       removed: removedCount,
       identical: addedCount === 0 && removedCount === 0,
+      degraded,
     },
   }
 }

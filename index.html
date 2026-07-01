@@ -14,6 +14,23 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // 渲染前解析生效主题并写入 <html data-theme>，避免刷新闪烁。
+      // 存储的是偏好 pref：'auto'（默认，跟随系统）| 'light' | 'dark'
+      // data-theme 始终是解析后的生效值：'light' | 'dark'
+      (function () {
+        var pref = 'auto'
+        try {
+          var saved = JSON.parse(localStorage.getItem('diff-checker:theme'))
+          if (saved === 'light' || saved === 'dark' || saved === 'auto') pref = saved
+        } catch (e) {}
+        var sysDark =
+          window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches
+        var effective = pref === 'auto' ? (sysDark ? 'dark' : 'light') : pref
+        document.documentElement.setAttribute('data-theme', effective)
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>
