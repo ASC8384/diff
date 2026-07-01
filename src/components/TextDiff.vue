@@ -16,6 +16,7 @@ const mode = ref('split') // 'split' | 'inline' | 'patch'
 const ignoreCase = ref(false)
 const ignoreWhitespace = ref(false)
 const highlight = ref(true)
+const live = ref(false) // 实时对比：输入/选项变化自动重算
 
 const result = shallowRef(null)
 const compared = ref(false)
@@ -45,6 +46,29 @@ function swap() {
   ;[leftName.value, rightName.value] = [rightName.value, leftName.value]
   if (compared.value) compare()
 }
+
+/* ---------- 实时对比 ---------- */
+// 防抖调度，避免边输入边跑 diff 造成卡顿（大文本已在 computeDiff 内降级）
+let liveTimer = null
+function scheduleLive() {
+  clearTimeout(liveTimer)
+  liveTimer = setTimeout(() => {
+    if (canCompare.value) compare()
+    else {
+      // 两侧都清空了：退出结果态
+      compared.value = false
+      result.value = null
+    }
+  }, 300)
+}
+
+// 开启实时对比、或已在实时模式下改动输入/选项时，自动重算
+watch([leftText, rightText, ignoreCase, ignoreWhitespace], () => {
+  if (live.value) scheduleLive()
+})
+watch(live, (on) => {
+  if (on && canCompare.value) compare()
+})
 
 /* ---------- 导出 ---------- */
 function downloadPatch() {
@@ -113,12 +137,13 @@ watch([leftText, rightText, leftName, rightName], () => {
 })
 
 // 选项/视图即时写入
-watch([mode, ignoreCase, ignoreWhitespace, highlight], () => {
+watch([mode, ignoreCase, ignoreWhitespace, highlight, live], () => {
   save(OPTS_KEY, {
     mode: mode.value,
     ignoreCase: ignoreCase.value,
     ignoreWhitespace: ignoreWhitespace.value,
     highlight: highlight.value,
+    live: live.value,
   })
 })
 
@@ -129,6 +154,7 @@ onMounted(() => {
     ignoreCase.value = !!opts.ignoreCase
     ignoreWhitespace.value = !!opts.ignoreWhitespace
     highlight.value = opts.highlight !== false
+    live.value = !!opts.live
   }
   leftText.value = load('text-left', '') || ''
   rightText.value = load('text-right', '') || ''
@@ -159,10 +185,23 @@ onMounted(() => {
 
     <div class="toolbar">
       <div class="toolbar__group">
-        <button class="btn btn--primary" :disabled="!canCompare" @click="compare">
+        <button
+          class="btn btn--primary"
+          :disabled="!canCompare || live"
+          :title="live ? '实时对比已开启，无需手动点击' : ''"
+          @click="compare"
+        >
           对比差异
         </button>
         <button class="btn" @click="swap">交换两侧</button>
+        <button
+          class="btn"
+          :class="{ 'btn--toggle-on': live }"
+          :aria-pressed="live"
+          @click="live = !live"
+        >
+          实时对比{{ live ? '：开' : '：关' }}
+        </button>
       </div>
 
       <div class="toolbar__group toolbar__opts">
@@ -292,6 +331,16 @@ onMounted(() => {
 .btn--sm {
   padding: 6px 12px;
   font-size: 12.5px;
+}
+.btn--toggle-on {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.btn--toggle-on:hover:not(:disabled) {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 .opt {
   display: flex;
