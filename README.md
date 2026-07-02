@@ -32,3 +32,7 @@ npm run preview  # 本地预览构建产物
 ## 技术栈
 
 Vite + Vue 3 · [jsdiff](https://github.com/kpdecker/jsdiff) 差异算法 · highlight.js 语法高亮。
+
+## 更新日志
+
+版本变更记录见 [CHANGELOG.md](./CHANGELOG.md)，页脚也可点击版本号跳转查看。

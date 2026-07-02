@@ -10,6 +10,11 @@ const tabs = [
 ]
 const active = ref('text')
 
+// 版本号由 vite.config.js 从 package.json 注入；页脚链到更新日志
+const version = __APP_VERSION__
+const changelogUrl =
+  'https://github.com/ASC8384/diff/blob/main/CHANGELOG.md'
+
 /* 主题三态：auto（跟随系统）→ light → dark → auto 循环。
    偏好存 localStorage，生效值写到 <html data-theme>（与 index.html 防闪烁脚本一致）。 */
 const themePref = ref('auto')
@@ -127,6 +132,15 @@ onBeforeUnmount(() => {
 
   <footer class="app-footer">
     <span>开源的纯前端差异对比工具 · 文本、代码、文件与图片对比</span>
+    <a
+      class="app-footer__version"
+      :href="changelogUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      title="查看更新日志"
+    >
+      v{{ version }}
+    </a>
   </footer>
 </template>
 
@@ -260,6 +274,25 @@ onBeforeUnmount(() => {
   padding: 20px;
   font-size: 12px;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.app-footer__version {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  transition: color 0.16s, border-color 0.16s;
+}
+.app-footer__version:hover {
+  color: var(--primary);
+  border-color: var(--primary);
 }
 @media (max-width: 640px) {
   .brand__sub {
