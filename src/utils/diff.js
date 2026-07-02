@@ -1,4 +1,4 @@
-import { diffLines, diffWordsWithSpace } from 'diff'
+import { diffLines, diffWordsWithSpace, diffArrays } from 'diff'
 
 /**
  * 差异对比核心工具。
@@ -38,12 +38,49 @@ function splitLines(value) {
   return lines
 }
 
+// 含中日韩等无空格分词的文字。diffWordsWithSpace 靠空格切词，
+// 对这类文字会把整行当成一个 token（改一个字整行标红），故需特殊处理。
+const CJK_RE =
+  /[぀-ヿ㐀-䶿一-鿿豈-﫿ｦ-ﾟ가-힯]/
+
+// 分词器缓存（Intl.Segmenter 构造开销不小，按 locale 复用）
+let wordSegmenter = null
+function getWordSegmenter() {
+  if (wordSegmenter === null && typeof Intl !== 'undefined' && Intl.Segmenter) {
+    try {
+      wordSegmenter = new Intl.Segmenter('zh', { granularity: 'word' })
+    } catch {
+      wordSegmenter = false // 标记不可用，避免反复重试
+    }
+  }
+  return wordSegmenter || null
+}
+
+/**
+ * 将一行切成 token 数组，供 diffArrays 使用。
+ * 优先用 Intl.Segmenter 做词级切分（对 CJK 与拉丁词都合适），
+ * 不可用时退化为逐字符切分（对 CJK 仍比整行标红精确）。
+ */
+function tokenizeLine(line) {
+  const seg = getWordSegmenter()
+  if (seg) {
+    const out = []
+    for (const { segment } of seg.segment(line)) out.push(segment)
+    return out
+  }
+  return Array.from(line)
+}
+
 /**
  * 对一对「删除行 / 新增行」计算字符级片段。
  * 返回 { leftSegments, rightSegments }，每个片段 { value, type }。
  * type: 'equal' | 'removed' | 'added'
  */
 function charDiff(oldLine, newLine) {
+  // 任一侧含 CJK 时走分词 + diffArrays，否则用基于空格的词级 diff
+  if (CJK_RE.test(oldLine) || CJK_RE.test(newLine)) {
+    return tokenDiff(oldLine, newLine)
+  }
   const parts = diffWordsWithSpace(oldLine, newLine)
   const leftSegments = []
   const rightSegments = []
@@ -60,8 +97,31 @@ function charDiff(oldLine, newLine) {
   return { leftSegments, rightSegments }
 }
 
+/**
+ * 基于 token 数组的字符级 diff（用于 CJK 行）。
+ * 把每个变更块内的 token 重新拼回字符串，减少 span 数量。
+ */
+function tokenDiff(oldLine, newLine) {
+  const parts = diffArrays(tokenizeLine(oldLine), tokenizeLine(newLine))
+  const leftSegments = []
+  const rightSegments = []
+  for (const part of parts) {
+    const value = part.value.join('')
+    if (part.added) {
+      rightSegments.push({ value, type: 'added' })
+    } else if (part.removed) {
+      leftSegments.push({ value, type: 'removed' })
+    } else {
+      leftSegments.push({ value, type: 'equal' })
+      rightSegments.push({ value, type: 'equal' })
+    }
+  }
+  return { leftSegments, rightSegments }
+}
+
 // 超过该行数（两侧之和）时进入降级模式：跳过字符级行内高亮，
-// 只做行级 diff，避免大文本下 diffWordsWithSpace 逐行运算卡住 UI。
+// 只做行级 diff，避免大文本下逐行做字符级 diff（diffWordsWithSpace /
+// diffArrays）拖慢或卡住 UI。
 const CHAR_DIFF_LINE_LIMIT = 5000
 
 /**

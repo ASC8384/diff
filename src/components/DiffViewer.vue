@@ -13,17 +13,20 @@ const props = defineProps({
 
 const CONTEXT = 3 // 折叠时变更块上下各保留的行数
 
-// 对单个片段文本做语法高亮，返回 HTML 字符串
+// 对单个片段文本做语法高亮，返回 HTML 字符串。
+// 语言用 detectedLanguage 统一确定：整份内容只检测一次，避免逐片段
+// highlightAuto 造成「同一文件每行各猜一种语言、颜色乱跳」且缓慢。
 function renderSegment(seg) {
   const value = seg.value ?? ''
   if (!props.highlight || value === '') {
     return escapeHtml(value)
   }
+  const lang = detectedLanguage.value
+  if (!lang) return escapeHtml(value)
   try {
-    if (props.language && hljs.getLanguage(props.language)) {
-      return hljs.highlight(value, { language: props.language }).value
-    }
-    return hljs.highlightAuto(value).value
+    // ignoreIllegals：片段常是不完整的代码碎片（如 `foo(`），
+    // 关闭非法语法报错，尽力高亮。
+    return hljs.highlight(value, { language: lang, ignoreIllegals: true }).value
   } catch {
     return escapeHtml(value)
   }
@@ -35,6 +38,35 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 }
+
+/**
+ * 统一检测整份内容的语言：拼接若干原始行做一次 highlightAuto，
+ * 得到语言名后供 renderSegment 复用。相较逐片段自动检测，既保证
+ * 全文件用同一套语法规则、颜色一致，也把 highlightAuto 从「每片段一次」
+ * 降到「每轮对比一次」。language prop 显式指定时优先。
+ */
+const detectedLanguage = computed(() => {
+  if (!props.highlight) return ''
+  if (props.language && hljs.getLanguage(props.language)) return props.language
+
+  // 优先用并排行的右侧原文（新内容），回退到行内行
+  const source = props.rows.length ? props.rows : props.inlineRows
+  const sample = []
+  for (const row of source) {
+    const segs = row.rightSegments || row.leftSegments || row.segments
+    if (segs) sample.push(segs.map((s) => s.value ?? '').join(''))
+    if (sample.length >= 400) break // 采样上限，超大文件不必全量检测
+  }
+  const text = sample.join('\n').trim()
+  if (!text) return ''
+  try {
+    const { language, relevance } = hljs.highlightAuto(text)
+    // relevance 过低说明多半是纯文本/无法判定，不强行套高亮
+    return language && relevance >= 5 ? language : ''
+  } catch {
+    return ''
+  }
+})
 
 function segClass(seg) {
   if (seg.type === 'added') return 'seg seg--added'
