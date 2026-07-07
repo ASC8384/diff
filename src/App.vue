@@ -10,6 +10,13 @@ const tabs = [
 ]
 const active = ref('text')
 
+// 宽屏平铺：去掉主区限宽，铺满视口宽度。偏好持久化。
+const wide = ref(false)
+function toggleWide() {
+  wide.value = !wide.value
+  save('wide', wide.value)
+}
+
 // 版本号由 vite.config.js 从 package.json 注入；页脚链到更新日志
 const version = __APP_VERSION__
 const changelogUrl =
@@ -51,6 +58,7 @@ onMounted(() => {
   media = window.matchMedia('(prefers-color-scheme: dark)')
   media.addEventListener('change', onSystemChange)
   applyTheme()
+  wide.value = !!load('wide', false)
 })
 
 onBeforeUnmount(() => {
@@ -59,7 +67,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <header class="app-header">
+  <header class="app-header" :class="{ 'app-header--wide': wide }">
     <div class="app-header__inner">
       <div class="brand">
         <span class="brand__mark">diff<i>±</i></span>
@@ -103,6 +111,21 @@ onBeforeUnmount(() => {
       <button
         class="theme-btn"
         type="button"
+        :class="{ 'theme-btn--on': wide }"
+        :title="wide ? '宽屏平铺：开（点击关闭）' : '宽屏平铺：关（点击铺满）'"
+        :aria-label="'宽屏平铺' + (wide ? '已开启' : '已关闭')"
+        :aria-pressed="wide"
+        @click="toggleWide"
+      >
+        <!-- 平铺：左右扩展箭头 -->
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 5v14M21 5v14M7 12h10M7 12l3-3M7 12l3 3M17 12l-3-3M17 12l-3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+
+      <button
+        class="theme-btn"
+        type="button"
         :title="'主题：' + themeMeta[themePref].label + '（点击切换）'"
         :aria-label="'主题：' + themeMeta[themePref].label"
         @click="cycleTheme"
@@ -125,7 +148,7 @@ onBeforeUnmount(() => {
     </div>
   </header>
 
-  <main class="app-main">
+  <main class="app-main" :class="{ 'app-main--wide': wide }">
     <TextDiff v-show="active === 'text'" />
     <ImageDiff v-if="active === 'image'" />
   </main>
@@ -257,6 +280,11 @@ onBeforeUnmount(() => {
   color: var(--primary);
   border-color: var(--primary);
 }
+.theme-btn--on {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
 .theme-btn svg {
   width: 17px;
   height: 17px;
@@ -268,6 +296,13 @@ onBeforeUnmount(() => {
   width: 100%;
   margin: 0 auto;
   padding: 28px 24px;
+}
+/* 宽屏平铺：主区与顶栏内容都放开限宽，铺满视口 */
+.app-main--wide {
+  max-width: none;
+}
+.app-header--wide .app-header__inner {
+  max-width: none;
 }
 .app-footer {
   text-align: center;
