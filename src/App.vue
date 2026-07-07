@@ -2,6 +2,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import TextDiff from './components/TextDiff.vue'
 import ImageDiff from './components/ImageDiff.vue'
+import HelpDialog from './components/HelpDialog.vue'
 import { load, save } from './utils/storage.js'
 
 const tabs = [
@@ -16,6 +17,9 @@ function toggleWide() {
   wide.value = !wide.value
   save('wide', wide.value)
 }
+
+// 帮助浮层
+const helpOpen = ref(false)
 
 // 版本号由 vite.config.js 从 package.json 注入；页脚链到更新日志
 const version = __APP_VERSION__
@@ -111,6 +115,21 @@ onBeforeUnmount(() => {
       <button
         class="theme-btn"
         type="button"
+        title="使用帮助"
+        aria-label="使用帮助"
+        @click="helpOpen = true"
+      >
+        <!-- 帮助：问号 -->
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M9.3 9.2a2.7 2.7 0 0 1 5.2 1c0 1.8-2.5 2.2-2.5 3.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <circle cx="12" cy="17" r="0.5" fill="currentColor" stroke="currentColor" stroke-width="1" />
+        </svg>
+      </button>
+
+      <button
+        class="theme-btn"
+        type="button"
         :class="{ 'theme-btn--on': wide }"
         :title="wide ? '宽屏平铺：开（点击关闭）' : '宽屏平铺：关（点击铺满）'"
         :aria-label="'宽屏平铺' + (wide ? '已开启' : '已关闭')"
@@ -152,6 +171,8 @@ onBeforeUnmount(() => {
     <TextDiff v-show="active === 'text'" />
     <ImageDiff v-if="active === 'image'" />
   </main>
+
+  <HelpDialog :open="helpOpen" @close="helpOpen = false" />
 
   <footer class="app-footer">
     <span>开源的纯前端差异对比工具 · 文本、代码、文件与图片对比</span>
