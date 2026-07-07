@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 
 const leftSrc = ref('')
 const rightSrc = ref('')
@@ -10,12 +10,20 @@ const mode = ref('side') // 'side' | 'slider' | 'diff'
 const sliderPos = ref(50)
 const diffCanvas = ref(null)
 
+// 释放某侧当前持有的 blob URL，避免反复换图时内存累积
+function revokeSide(side) {
+  const cur = side === 'left' ? leftSrc.value : rightSrc.value
+  if (cur) URL.revokeObjectURL(cur)
+}
+
 function loadImage(file, side) {
   if (!file || !file.type.startsWith('image/')) return
   const url = URL.createObjectURL(file)
   const img = new Image()
   img.onload = () => {
     const meta = { name: file.name, width: img.naturalWidth, height: img.naturalHeight }
+    // 替换前释放旧 URL
+    revokeSide(side)
     if (side === 'left') {
       leftSrc.value = url
       leftMeta.value = meta
@@ -24,8 +32,14 @@ function loadImage(file, side) {
       rightMeta.value = meta
     }
   }
+  img.onerror = () => URL.revokeObjectURL(url) // 加载失败也释放
   img.src = url
 }
+
+onBeforeUnmount(() => {
+  revokeSide('left')
+  revokeSide('right')
+})
 
 function onFile(e, side) {
   loadImage(e.target.files?.[0], side)
