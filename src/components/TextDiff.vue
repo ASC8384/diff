@@ -17,6 +17,7 @@ const ignoreCase = ref(false)
 const ignoreWhitespace = ref(false)
 const highlight = ref(true)
 const live = ref(false) // 实时对比：输入/选项变化自动重算
+const maxSizeMB = ref(5) // 文件载入大小上限（MB），两侧共享
 
 const result = shallowRef(null)
 const compared = ref(false)
@@ -137,13 +138,14 @@ watch([leftText, rightText, leftName, rightName], () => {
 })
 
 // 选项/视图即时写入
-watch([mode, ignoreCase, ignoreWhitespace, highlight, live], () => {
+watch([mode, ignoreCase, ignoreWhitespace, highlight, live, maxSizeMB], () => {
   save(OPTS_KEY, {
     mode: mode.value,
     ignoreCase: ignoreCase.value,
     ignoreWhitespace: ignoreWhitespace.value,
     highlight: highlight.value,
     live: live.value,
+    maxSizeMB: maxSizeMB.value,
   })
 })
 
@@ -155,6 +157,8 @@ onMounted(() => {
     ignoreWhitespace.value = !!opts.ignoreWhitespace
     highlight.value = opts.highlight !== false
     live.value = !!opts.live
+    if (Number.isFinite(opts.maxSizeMB) && opts.maxSizeMB > 0)
+      maxSizeMB.value = opts.maxSizeMB
   }
   leftText.value = load('text-left', '') || ''
   rightText.value = load('text-right', '') || ''
@@ -174,11 +178,15 @@ onMounted(() => {
       <DiffInput
         v-model="leftText"
         label="原始内容"
+        :max-size-m-b="maxSizeMB"
+        @update:max-size-m-b="maxSizeMB = $event"
         @file-name="leftName = $event"
       />
       <DiffInput
         v-model="rightText"
         label="修改后内容"
+        :max-size-m-b="maxSizeMB"
+        @update:max-size-m-b="maxSizeMB = $event"
         @file-name="rightName = $event"
       />
     </div>
