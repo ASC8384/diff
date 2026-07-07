@@ -58,15 +58,21 @@ const sizeMismatch = computed(
       leftMeta.value.height !== rightMeta.value.height)
 )
 
+// 渲染序号：每次调用 renderDiff 自增，异步 onload 回调只在序号仍是最新时
+// 才写 canvas，避免快速切图时旧回调乱序覆盖结果。
+let renderToken = 0
+
 // 差异叠加：逐像素比较，差异处高亮
 function renderDiff() {
   const canvas = diffCanvas.value
   if (!canvas || !bothLoaded.value) return
+  const token = ++renderToken
   const imgA = new Image()
   const imgB = new Image()
   let loaded = 0
   const onBoth = () => {
     if (++loaded < 2) return
+    if (token !== renderToken) return // 已有更新的渲染，丢弃本次结果
     const w = Math.min(imgA.naturalWidth, imgB.naturalWidth)
     const h = Math.min(imgA.naturalHeight, imgB.naturalHeight)
     canvas.width = w
