@@ -115,6 +115,7 @@ function clear() {
         class="input-pane__textarea"
         :value="modelValue"
         :placeholder="placeholder"
+        :aria-label="label"
         spellcheck="false"
         @input="onInput"
       ></textarea>

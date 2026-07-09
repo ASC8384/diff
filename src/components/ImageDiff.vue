@@ -62,11 +62,24 @@ const sizeMismatch = computed(
 // 才写 canvas，避免快速切图时旧回调乱序覆盖结果。
 let renderToken = 0
 
+// 读取 CSS 变量 --diff-mark（hex）并解析为 RGB，供 canvas 染色与图例、
+// 主题保持一致。解析失败回退到洋红。
+function markRGB() {
+  const hex = getComputedStyle(document.documentElement)
+    .getPropertyValue('--diff-mark')
+    .trim()
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!m) return [255, 0, 128]
+  const n = parseInt(m[1], 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
 // 差异叠加：逐像素比较，差异处高亮
 function renderDiff() {
   const canvas = diffCanvas.value
   if (!canvas || !bothLoaded.value) return
   const token = ++renderToken
+  const [mr, mg, mb] = markRGB()
   const imgA = new Image()
   const imgB = new Image()
   let loaded = 0
@@ -98,10 +111,10 @@ function renderDiff() {
       const dbl = Math.abs(da.data[i + 2] - db.data[i + 2])
       const diff = dr + dg + dbl > threshold
       if (diff) {
-        // 差异像素：洋红高亮
-        out.data[i] = 255
-        out.data[i + 1] = 0
-        out.data[i + 2] = 128
+        // 差异像素：高亮标记色（取自 --diff-mark）
+        out.data[i] = mr
+        out.data[i + 1] = mg
+        out.data[i + 2] = mb
         out.data[i + 3] = 255
       } else {
         // 相同像素：淡化为灰度背景
@@ -340,7 +353,7 @@ watch([mode, leftSrc, rightSrc], async () => {
 }
 .warn {
   font-size: 13px;
-  color: #b45309;
+  color: var(--warn-fg);
 }
 .result-side {
   display: grid;
@@ -413,7 +426,7 @@ watch([mode, leftSrc, rightSrc], async () => {
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  background: rgb(255, 0, 128);
+  background: var(--diff-mark);
   display: inline-block;
 }
 @media (max-width: 720px) {

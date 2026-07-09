@@ -21,6 +21,11 @@
   --removed-bg: #fceef1;
   --removed-char: #f6c2cd;
 
+  /* 警告（尺寸不匹配等提示） */
+  --warn-fg: #b45309;
+  /* 图片差异高亮标记色 */
+  --diff-mark: #ff0080;
+
   --gutter-bg: #f9fafc;
 
   /* 阴影 */
@@ -60,6 +65,9 @@
   --removed-fg: #fb7185;
   --removed-bg: #2c1620;
   --removed-char: #5e2436;
+
+  --warn-fg: #fbbf24;
+  --diff-mark: #ff2e97;
 
   --gutter-bg: #10131d;
 
