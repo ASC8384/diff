@@ -5,6 +5,24 @@
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.0] - 2026-07-09
+
+### 新增
+
+- 使用帮助浮层：基于原生 `<dialog>`，含各功能说明与键盘快捷键列表。
+- 宽屏平铺开关：内容可铺满整个视口宽度。
+- 文件载入大小上限校验：超限时提示，可确认仍要载入或自定义上限。
+
+### 修复
+
+- 修复图片对比反复换图导致的 blob URL 内存泄漏。
+- 修复图片差异渲染的竞态：过期的异步回调不再覆盖 canvas。
+
+### 改进
+
+- 统一警告色与图片差异标记色为 CSS 变量，配色随主题一致。
+- 文本输入框补充 `aria-label`，改善无障碍访问。
+
 ## [1.2.0] - 2026-07-02
 
 ### 改进
@@ -39,6 +57,7 @@
 - 文件上传对比：拖拽或选择文本文件。
 - 图片对比：并排、滑块拖动、逐像素差异高亮三种模式。
 
+[1.3.0]: https://github.com/ASC8384/diff/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/ASC8384/diff/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/ASC8384/diff/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ASC8384/diff/releases/tag/v1.0.0
