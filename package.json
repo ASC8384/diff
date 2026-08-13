@@ -1,6 +1,6 @@
 {
   "name": "diff-checker-cn",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "在线差异对比工具（中文版），支持文本/代码对比、文件上传对比、图片对比",
   "type": "module",
   "scripts": {
