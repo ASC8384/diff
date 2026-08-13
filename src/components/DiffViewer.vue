@@ -1,15 +1,21 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import hljs from 'highlight.js/lib/common'
+import PickBar from './PickBar.vue'
 
 const props = defineProps({
   rows: { type: Array, default: () => [] },
   inlineRows: { type: Array, default: () => [] },
   patchLines: { type: Array, default: () => [] },
+  hunks: { type: Array, default: () => [] },
+  choices: { type: Object, default: () => ({}) },
+  picking: { type: Boolean, default: false }, // 是否显示挑选合并的选取条
   mode: { type: String, default: 'split' }, // 'split' | 'inline' | 'patch'
   highlight: { type: Boolean, default: true },
   language: { type: String, default: '' }, // '' 表示自动检测
 })
+
+const emit = defineEmits(['choose', 'bulk'])
 
 const CONTEXT = 3 // 折叠时变更块上下各保留的行数
 
@@ -144,30 +150,29 @@ const activeDisplay = computed(() =>
 )
 
 /* ---------- 差异跳转 ---------- */
-// 计算每个「变更块」（连续非 equal 行）起始的显示下标
-const hunkStarts = computed(() => {
-  const starts = []
-  let prevChange = false
-  activeDisplay.value.forEach((item, idx) => {
-    const isChange = item.kind === 'row' && item.row.type !== 'equal'
-    if (isChange && !prevChange) starts.push(idx)
-    prevChange = isChange
-  })
-  return starts
-})
-// 显示下标 → 变更块编号（仅每个块的首行有值），用于渲染锚点 id
-const hunkNoAt = computed(() => {
+// 显示下标 → hunkId（仅每个 hunk 首次出现的显示项有值），
+// 用于渲染跳转锚点与插入选取条。折叠只影响 equal 行，
+// 故每个 hunk 必然有对应的显示行。
+const hunkAt = computed(() => {
   const map = new Map()
-  hunkStarts.value.forEach((displayIdx, no) => map.set(displayIdx, no))
+  const seen = new Set()
+  activeDisplay.value.forEach((item, idx) => {
+    if (item.kind !== 'row') return
+    const id = item.row.hunkId
+    if (id == null || seen.has(id)) return
+    seen.add(id)
+    map.set(idx, id)
+  })
   return map
 })
+const hunkCount = computed(() => props.hunks.length)
 
 const currentHunk = ref(-1)
 const flashId = ref(-1)
 const rootEl = ref(null)
 
 function goHunk(n) {
-  const count = hunkStarts.value.length
+  const count = hunkCount.value
   if (!count) return
   const idx = ((n % count) + count) % count
   currentHunk.value = idx
@@ -182,6 +187,11 @@ function goHunk(n) {
   })
 }
 
+/* ---------- 挑选合并 ---------- */
+function choiceOf(id) {
+  return props.choices[id] || 'right'
+}
+
 function onKey(e) {
   if (!e.altKey || props.mode === 'patch') return
   if (e.key === 'ArrowDown') {
@@ -190,6 +200,14 @@ function onKey(e) {
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     goHunk(currentHunk.value - 1)
+  } else if (
+    props.picking &&
+    (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+    currentHunk.value >= 0
+  ) {
+    // 先用 Alt+↑/↓ 定位到某处差异，再用 Alt+←/→ 选边
+    e.preventDefault()
+    emit('choose', currentHunk.value, e.key === 'ArrowLeft' ? 'left' : 'right')
   }
 }
 
@@ -206,8 +224,9 @@ const hasContent = computed(
 
 <template>
   <div class="viewer" v-if="hasContent" ref="rootEl">
-    <!-- 结果区工具条：折叠开关 + 差异跳转（补丁视图下隐藏） -->
-    <div class="viewer__bar" v-if="mode !== 'patch'">
+    <!-- 结果区工具条：折叠开关 + 批量选取 + 差异跳转（补丁视图下隐藏）。
+         data-export-ignore：导出图片时整条工具条不入图。 -->
+    <div class="viewer__bar" v-if="mode !== 'patch'" data-export-ignore>
       <button
         class="viewer__tool"
         :class="{ 'viewer__tool--on': collapsed }"
@@ -216,7 +235,16 @@ const hasContent = computed(
       >
         {{ collapsed ? '已折叠相同行' : '显示全部行' }}
       </button>
-      <div class="viewer__nav" v-if="hunkStarts.length">
+      <div class="viewer__bulk" v-if="picking && hunkCount">
+        <span class="viewer__bulk-label">批量：</span>
+        <button class="viewer__tool" type="button" @click="emit('bulk', 'left')">
+          全部用左侧
+        </button>
+        <button class="viewer__tool" type="button" @click="emit('bulk', 'right')">
+          全部用右侧
+        </button>
+      </div>
+      <div class="viewer__nav" v-if="hunkCount">
         <button
           class="viewer__tool"
           type="button"
@@ -226,7 +254,7 @@ const hasContent = computed(
           ↑
         </button>
         <span class="viewer__count">
-          {{ currentHunk < 0 ? 0 : currentHunk + 1 }} / {{ hunkStarts.length }}
+          {{ currentHunk < 0 ? 0 : currentHunk + 1 }} / {{ hunkCount }}
         </span>
         <button
           class="viewer__tool"
@@ -256,46 +284,54 @@ const hasContent = computed(
               </span>
             </td>
           </tr>
-          <tr
-            v-else
-            :id="hunkNoAt.has(i) ? 'diff-hunk-' + hunkNoAt.get(i) : null"
-            :class="{ 'row--flash': hunkNoAt.get(i) === flashId }"
-          >
-            <td class="gutter">{{ item.row.leftNo ?? '' }}</td>
-            <td
-              class="code"
-              :class="{
-                'cell--removed':
-                  item.row.type === 'removed' || item.row.type === 'modified',
-              }"
+          <template v-else>
+            <PickBar
+              v-if="picking && hunkAt.has(i)"
+              :hunk-id="hunkAt.get(i)"
+              :total="hunkCount"
+              :choice="choiceOf(hunkAt.get(i))"
+              @choose="(id, kind) => emit('choose', id, kind)"
+            />
+            <tr
+              :id="hunkAt.has(i) ? 'diff-hunk-' + hunkAt.get(i) : null"
+              :class="{ 'row--flash': hunkAt.get(i) === flashId }"
             >
-              <template v-if="item.row.leftSegments">
-                <span
-                  v-for="(seg, j) in item.row.leftSegments"
-                  :key="j"
-                  :class="segClass(seg)"
-                  v-html="renderSegment(seg)"
-                ></span>
-              </template>
-            </td>
-            <td class="gutter">{{ item.row.rightNo ?? '' }}</td>
-            <td
-              class="code"
-              :class="{
-                'cell--added':
-                  item.row.type === 'added' || item.row.type === 'modified',
-              }"
-            >
-              <template v-if="item.row.rightSegments">
-                <span
-                  v-for="(seg, j) in item.row.rightSegments"
-                  :key="j"
-                  :class="segClass(seg)"
-                  v-html="renderSegment(seg)"
-                ></span>
-              </template>
-            </td>
-          </tr>
+              <td class="gutter">{{ item.row.leftNo ?? '' }}</td>
+              <td
+                class="code"
+                :class="{
+                  'cell--removed':
+                    item.row.type === 'removed' || item.row.type === 'modified',
+                }"
+              >
+                <template v-if="item.row.leftSegments">
+                  <span
+                    v-for="(seg, j) in item.row.leftSegments"
+                    :key="j"
+                    :class="segClass(seg)"
+                    v-html="renderSegment(seg)"
+                  ></span>
+                </template>
+              </td>
+              <td class="gutter">{{ item.row.rightNo ?? '' }}</td>
+              <td
+                class="code"
+                :class="{
+                  'cell--added':
+                    item.row.type === 'added' || item.row.type === 'modified',
+                }"
+              >
+                <template v-if="item.row.rightSegments">
+                  <span
+                    v-for="(seg, j) in item.row.rightSegments"
+                    :key="j"
+                    :class="segClass(seg)"
+                    v-html="renderSegment(seg)"
+                  ></span>
+                </template>
+              </td>
+            </tr>
+          </template>
         </template>
       </tbody>
     </table>
@@ -317,35 +353,43 @@ const hasContent = computed(
               </span>
             </td>
           </tr>
-          <tr
-            v-else
-            :id="hunkNoAt.has(i) ? 'diff-hunk-' + hunkNoAt.get(i) : null"
-            :class="[
-              rowClass(item.row.type),
-              { 'row--flash': hunkNoAt.get(i) === flashId },
-            ]"
-          >
-            <td class="gutter">{{ item.row.leftNo ?? '' }}</td>
-            <td class="gutter">{{ item.row.rightNo ?? '' }}</td>
-            <td class="sign">
-              <span v-if="item.row.type === 'added'">+</span>
-              <span v-else-if="item.row.type === 'removed'">-</span>
-            </td>
-            <td
-              class="code"
-              :class="{
-                'cell--added': item.row.type === 'added',
-                'cell--removed': item.row.type === 'removed',
-              }"
+          <template v-else>
+            <PickBar
+              v-if="picking && hunkAt.has(i)"
+              :hunk-id="hunkAt.get(i)"
+              :total="hunkCount"
+              :choice="choiceOf(hunkAt.get(i))"
+              @choose="(id, kind) => emit('choose', id, kind)"
+            />
+            <tr
+              :id="hunkAt.has(i) ? 'diff-hunk-' + hunkAt.get(i) : null"
+              :class="[
+                rowClass(item.row.type),
+                { 'row--flash': hunkAt.get(i) === flashId },
+              ]"
             >
-              <span
-                v-for="(seg, j) in item.row.segments"
-                :key="j"
-                :class="segClass(seg)"
-                v-html="renderSegment(seg)"
-              ></span>
-            </td>
-          </tr>
+              <td class="gutter">{{ item.row.leftNo ?? '' }}</td>
+              <td class="gutter">{{ item.row.rightNo ?? '' }}</td>
+              <td class="sign">
+                <span v-if="item.row.type === 'added'">+</span>
+                <span v-else-if="item.row.type === 'removed'">-</span>
+              </td>
+              <td
+                class="code"
+                :class="{
+                  'cell--added': item.row.type === 'added',
+                  'cell--removed': item.row.type === 'removed',
+                }"
+              >
+                <span
+                  v-for="(seg, j) in item.row.segments"
+                  :key="j"
+                  :class="segClass(seg)"
+                  v-html="renderSegment(seg)"
+                ></span>
+              </td>
+            </tr>
+          </template>
         </template>
       </tbody>
     </table>
@@ -386,6 +430,18 @@ const hasContent = computed(
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.viewer__bulk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* 吸收剩余空间，使批量按钮紧邻左侧折叠开关、跳转留在最右 */
+  margin-right: auto;
+}
+.viewer__bulk-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  user-select: none;
 }
 .viewer__tool {
   border: 1px solid var(--border-strong);

@@ -11,6 +11,9 @@ import { diffLines, diffWordsWithSpace, diffArrays } from 'diff'
  * 输出两套结构：
  *  - rows：并排视图（左右两列对齐）
  *  - inlineRows：行内统一视图（单列，带 +/- 标记）
+ *
+ * 另输出 hunks：把连续的非 equal 行归为一处「差异」，携带两侧原始行文本。
+ * 每行都带 hunkId 指回所属差异（equal 行为 null），供差异跳转与挑选合并使用。
  */
 
 /**
@@ -129,7 +132,7 @@ const CHAR_DIFF_LINE_LIMIT = 5000
  * @param {string} oldText 原始文本
  * @param {string} newText 新文本
  * @param {object} options { ignoreCase, ignoreWhitespace }
- * @returns {{ rows, inlineRows, stats }}
+ * @returns {{ rows, inlineRows, hunks, stats }}
  */
 export function computeDiff(oldText, newText, options = {}) {
   const opts = {
@@ -155,6 +158,19 @@ export function computeDiff(oldText, newText, options = {}) {
   let addedCount = 0
   let removedCount = 0
 
+  // 差异块（hunk）累积：连续的非 equal 行归为一处差异，
+  // 遇到 equal 行即封块。id 递增，同时充当差异跳转的编号。
+  const hunks = []
+  let hunk = null
+
+  function openHunk() {
+    if (!hunk) {
+      hunk = { id: hunks.length, leftLines: [], rightLines: [] }
+      hunks.push(hunk)
+    }
+    return hunk
+  }
+
   // 将 changes 转成块序列，便于把相邻的 removed/added 配对
   const blocks = changes.map((c) => ({
     type: c.added ? 'added' : c.removed ? 'removed' : 'equal',
@@ -165,11 +181,13 @@ export function computeDiff(oldText, newText, options = {}) {
     const block = blocks[i]
 
     if (block.type === 'equal') {
+      hunk = null // 相同行封上前一处差异
       for (let k = 0; k < block.count; k++) {
         const left = oldOrig[oldIdx]
         const right = newOrig[newIdx]
         rows.push({
           type: 'equal',
+          hunkId: null,
           leftNo: oldIdx + 1,
           rightNo: newIdx + 1,
           leftSegments: [{ value: left, type: 'equal' }],
@@ -177,6 +195,7 @@ export function computeDiff(oldText, newText, options = {}) {
         })
         inlineRows.push({
           type: 'equal',
+          hunkId: null,
           leftNo: oldIdx + 1,
           rightNo: newIdx + 1,
           segments: [{ value: right, type: 'equal' }],
@@ -205,8 +224,12 @@ export function computeDiff(oldText, newText, options = {}) {
               rightSegments: [{ value: newLine, type: 'added' }],
             }
           : charDiff(oldLine, newLine)
+        const h = openHunk()
+        h.leftLines.push(oldLine)
+        h.rightLines.push(newLine)
         rows.push({
           type: 'modified',
+          hunkId: h.id,
           leftNo: oldIdx + 1,
           rightNo: newIdx + 1,
           leftSegments,
@@ -214,12 +237,14 @@ export function computeDiff(oldText, newText, options = {}) {
         })
         inlineRows.push({
           type: 'removed',
+          hunkId: h.id,
           leftNo: oldIdx + 1,
           rightNo: null,
           segments: leftSegments,
         })
         inlineRows.push({
           type: 'added',
+          hunkId: h.id,
           leftNo: null,
           rightNo: newIdx + 1,
           segments: rightSegments,
@@ -233,8 +258,11 @@ export function computeDiff(oldText, newText, options = {}) {
       // removed 块剩余行（纯删除）
       for (let k = pairCount; k < block.count; k++) {
         const oldLine = oldOrig[oldIdx]
+        const h = openHunk()
+        h.leftLines.push(oldLine)
         rows.push({
           type: 'removed',
+          hunkId: h.id,
           leftNo: oldIdx + 1,
           rightNo: null,
           leftSegments: [{ value: oldLine, type: 'removed' }],
@@ -242,6 +270,7 @@ export function computeDiff(oldText, newText, options = {}) {
         })
         inlineRows.push({
           type: 'removed',
+          hunkId: h.id,
           leftNo: oldIdx + 1,
           rightNo: null,
           segments: [{ value: oldLine, type: 'removed' }],
@@ -254,8 +283,11 @@ export function computeDiff(oldText, newText, options = {}) {
       if (pairedAdded) {
         for (let k = pairCount; k < pairedAdded.count; k++) {
           const newLine = newOrig[newIdx]
+          const h = openHunk()
+          h.rightLines.push(newLine)
           rows.push({
             type: 'added',
+            hunkId: h.id,
             leftNo: null,
             rightNo: newIdx + 1,
             leftSegments: null,
@@ -263,6 +295,7 @@ export function computeDiff(oldText, newText, options = {}) {
           })
           inlineRows.push({
             type: 'added',
+            hunkId: h.id,
             leftNo: null,
             rightNo: newIdx + 1,
             segments: [{ value: newLine, type: 'added' }],
@@ -279,8 +312,11 @@ export function computeDiff(oldText, newText, options = {}) {
     if (block.type === 'added') {
       for (let k = 0; k < block.count; k++) {
         const newLine = newOrig[newIdx]
+        const h = openHunk()
+        h.rightLines.push(newLine)
         rows.push({
           type: 'added',
+          hunkId: h.id,
           leftNo: null,
           rightNo: newIdx + 1,
           leftSegments: null,
@@ -288,6 +324,7 @@ export function computeDiff(oldText, newText, options = {}) {
         })
         inlineRows.push({
           type: 'added',
+          hunkId: h.id,
           leftNo: null,
           rightNo: newIdx + 1,
           segments: [{ value: newLine, type: 'added' }],
@@ -301,6 +338,7 @@ export function computeDiff(oldText, newText, options = {}) {
   return {
     rows,
     inlineRows,
+    hunks,
     stats: {
       added: addedCount,
       removed: removedCount,

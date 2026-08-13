@@ -31,6 +31,8 @@ function onClick(e) {
 const shortcuts = [
   { keys: ['Alt', '↓'], desc: '跳到下一处差异' },
   { keys: ['Alt', '↑'], desc: '跳到上一处差异' },
+  { keys: ['Alt', '←'], desc: '当前差异改用左侧（需开启挑选合并）' },
+  { keys: ['Alt', '→'], desc: '当前差异改用右侧（需开启挑选合并）' },
   { keys: ['Esc'], desc: '关闭本帮助' },
 ]
 </script>
@@ -61,6 +63,22 @@ const shortcuts = [
         </section>
 
         <section class="help__sec">
+          <h3>挑选合并</h3>
+          <ul>
+            <li>
+              点工具栏<b>挑选合并</b>后，每处差异上方出现选取条，可选
+              <b>用左侧</b>、<b>用右侧</b>、<b>两者</b>（左块整段后接右块整段）或<b>弃用</b>。
+            </li>
+            <li>默认全部用右侧，即等于「修改后内容」；只需改动想保留左侧的那几处。</li>
+            <li>工具条的<b>批量</b>按钮可一次全选左侧或右侧，面板上的「重置选择」回到默认。</li>
+            <li>页面最下方实时给出合并结果，行按来源着色，可<b>复制</b>、<b>下载文本</b>。</li>
+            <li>
+              <b>写入右侧</b>把结果回填到右侧输入框并重新对比，可分几轮逐步消化差异。
+            </li>
+          </ul>
+        </section>
+
+        <section class="help__sec">
           <h3>图片对比</h3>
           <ul>
             <li><b>并排</b>：两图左右并列查看。</li>
@@ -84,7 +102,7 @@ const shortcuts = [
               </tr>
             </tbody>
           </table>
-          <p class="help__note">差异跳转快捷键在文本的并排 / 行内视图下生效。</p>
+          <p class="help__note">差异跳转快捷键在文本的并排 / 行内视图下生效。选边前先用 Alt+↑ / ↓ 定位到某处差异。</p>
         </section>
 
         <section class="help__sec">

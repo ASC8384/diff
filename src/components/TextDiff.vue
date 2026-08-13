@@ -2,8 +2,10 @@
 import { ref, computed, shallowRef, watch, onMounted } from 'vue'
 import DiffInput from './DiffInput.vue'
 import DiffViewer from './DiffViewer.vue'
+import MergePanel from './MergePanel.vue'
 import { computeDiff } from '../utils/diff.js'
 import { buildPatch, parsePatchLines } from '../utils/patch.js'
+import { buildMerged, defaultChoices, countChoices } from '../utils/merge.js'
 import { load, save } from '../utils/storage.js'
 import 'highlight.js/styles/github.css'
 
@@ -17,15 +19,20 @@ const ignoreCase = ref(false)
 const ignoreWhitespace = ref(false)
 const highlight = ref(true)
 const live = ref(false) // 实时对比：输入/选项变化自动重算
+const picking = ref(false) // 挑选合并：逐处选边并在下方生成结果
 const maxSizeMB = ref(5) // 文件载入大小上限（MB），两侧共享
 
 const result = shallowRef(null)
 const compared = ref(false)
 
+// 每处差异的选择：{ [hunkId]: 'left' | 'right' | 'both' | 'none' }
+const choices = ref({})
+
 // 补丁文本（对比后按需生成，供补丁视图与导出复用）
 const patchText = ref('')
 const patchLines = shallowRef([])
 const copied = ref(false)
+const mergeCopied = ref(false)
 const exporting = ref(false)
 const viewerRef = ref(null)
 
@@ -39,6 +46,8 @@ function compare() {
     newName: rightName.value || 'modified',
   })
   patchLines.value = parsePatchLines(patchText.value)
+  // 新一轮对比：hunk 编号已变，选择重置为默认（全部用右侧）
+  choices.value = defaultChoices(result.value.hunks)
   compared.value = true
 }
 
@@ -59,6 +68,7 @@ function scheduleLive() {
       // 两侧都清空了：退出结果态
       compared.value = false
       result.value = null
+      choices.value = {}
     }
   }, 300)
 }
@@ -70,6 +80,62 @@ watch([leftText, rightText, ignoreCase, ignoreWhitespace], () => {
 watch(live, (on) => {
   if (on && canCompare.value) compare()
 })
+
+/* ---------- 挑选合并 ---------- */
+function choose(hunkId, kind) {
+  choices.value = { ...choices.value, [hunkId]: kind }
+}
+
+// 批量：全部用左侧 / 全部用右侧
+function chooseAll(kind) {
+  const next = {}
+  for (const h of result.value?.hunks ?? []) next[h.id] = kind
+  choices.value = next
+}
+
+function resetChoices() {
+  choices.value = defaultChoices(result.value?.hunks)
+}
+
+const merged = computed(() => {
+  if (!result.value) return { text: '', lines: [] }
+  return buildMerged(result.value.rows, result.value.hunks, choices.value, {
+    // 末尾换行跟随右侧文本，与 equal 行取右侧原文的基线一致
+    trailingNewline: rightText.value.endsWith('\n'),
+  })
+})
+
+const mergeCounts = computed(() =>
+  countChoices(result.value?.hunks, choices.value)
+)
+
+async function copyMerged() {
+  try {
+    await navigator.clipboard.writeText(merged.value.text)
+    mergeCopied.value = true
+    setTimeout(() => (mergeCopied.value = false), 1600)
+  } catch {
+    /* 剪贴板不可用时静默 */
+  }
+}
+
+function downloadMerged() {
+  const blob = new Blob([merged.value.text], {
+    type: 'text/plain;charset=utf-8',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'merged.txt'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// 把合并结果写回右侧输入框，便于基于结果继续下一轮对比（迭代消化差异）
+function applyMerged() {
+  rightText.value = merged.value.text
+  compare()
+}
 
 /* ---------- 导出 ---------- */
 function downloadPatch() {
@@ -104,6 +170,9 @@ async function exportImage() {
     const dataUrl = await toPng(node, {
       backgroundColor: bg,
       pixelRatio: 2,
+      // 选取条等交互元素不进导出图。注意无值属性的 dataset 取到空串（falsy），
+      // 故按「属性是否存在」判断而非取值。
+      filter: (n) => !(n.dataset && 'exportIgnore' in n.dataset),
     })
     const a = document.createElement('a')
     a.href = dataUrl
@@ -138,16 +207,20 @@ watch([leftText, rightText, leftName, rightName], () => {
 })
 
 // 选项/视图即时写入
-watch([mode, ignoreCase, ignoreWhitespace, highlight, live, maxSizeMB], () => {
-  save(OPTS_KEY, {
-    mode: mode.value,
-    ignoreCase: ignoreCase.value,
-    ignoreWhitespace: ignoreWhitespace.value,
-    highlight: highlight.value,
-    live: live.value,
-    maxSizeMB: maxSizeMB.value,
-  })
-})
+watch(
+  [mode, ignoreCase, ignoreWhitespace, highlight, live, picking, maxSizeMB],
+  () => {
+    save(OPTS_KEY, {
+      mode: mode.value,
+      ignoreCase: ignoreCase.value,
+      ignoreWhitespace: ignoreWhitespace.value,
+      highlight: highlight.value,
+      live: live.value,
+      picking: picking.value,
+      maxSizeMB: maxSizeMB.value,
+    })
+  }
+)
 
 onMounted(() => {
   const opts = load(OPTS_KEY, null)
@@ -157,6 +230,7 @@ onMounted(() => {
     ignoreWhitespace.value = !!opts.ignoreWhitespace
     highlight.value = opts.highlight !== false
     live.value = !!opts.live
+    picking.value = !!opts.picking
     if (Number.isFinite(opts.maxSizeMB) && opts.maxSizeMB > 0)
       maxSizeMB.value = opts.maxSizeMB
   }
@@ -209,6 +283,15 @@ onMounted(() => {
           @click="live = !live"
         >
           实时对比{{ live ? '：开' : '：关' }}
+        </button>
+        <button
+          class="btn"
+          :class="{ 'btn--toggle-on': picking }"
+          :aria-pressed="picking"
+          title="逐处选择采用左侧还是右侧，在下方生成合并结果"
+          @click="picking = !picking"
+        >
+          挑选合并{{ picking ? '：开' : '：关' }}
         </button>
       </div>
 
@@ -280,8 +363,25 @@ onMounted(() => {
       :rows="result.rows"
       :inline-rows="result.inlineRows"
       :patch-lines="patchLines"
+      :hunks="result.hunks"
+      :choices="choices"
+      :picking="picking"
       :mode="mode"
       :highlight="highlight"
+      @choose="choose"
+      @bulk="chooseAll"
+    />
+
+    <MergePanel
+      v-if="picking && compared && stats && !stats.identical"
+      :lines="merged.lines"
+      :text="merged.text"
+      :counts="mergeCounts"
+      :copied="mergeCopied"
+      @copy="copyMerged"
+      @download="downloadMerged"
+      @apply="applyMerged"
+      @reset="resetChoices"
     />
   </section>
 </template>
